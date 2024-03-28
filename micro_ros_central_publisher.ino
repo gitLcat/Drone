@@ -6,10 +6,15 @@
 #include <rclc/rclc.h>
 #include <rclc/executor.h>
 
-#include <std_msgs/msg/int32.h>
-
-rcl_publisher_t publisher,test;
-std_msgs__msg__Int32 msg;
+#include <std_msgs/msg/float32.h>
+#include <geometry_msgs/msg/vector3.h>
+#include <std_msgs/msg/string.h>
+rcl_publisher_t test;
+rcl_publisher_t gyro_publisher;
+rcl_publisher_t Tilt_publisher;
+std_msgs__msg__String angle;
+std_msgs__msg__Float32 msg;
+geometry_msgs__msg__Vector3 g_msg;
 rclc_executor_t executor;
 rclc_support_t support;
 rcl_allocator_t allocator;
@@ -32,14 +37,6 @@ void error_loop(){
   }
 }
 
-void timer_callback(rcl_timer_t * timer, int64_t last_call_time)
-{  
-  RCLC_UNUSED(last_call_time);
-  if (timer != NULL) {
-    RCSOFTCHECK(rcl_publish(&publisher, &msg, NULL));
-    msg.data++;
-  }
-}
 
 void setup() {
   set_microros_transports();
@@ -58,25 +55,25 @@ void setup() {
   RCCHECK(rclc_node_init_default(&node, "micro_ros_arduino_node", "", &support));
 
   // create publisher
-  RCCHECK(rclc_publisher_init_default(
-    &publisher,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-    "micro_ros_arduino_node_publisher"));
+
 
   RCCHECK(rclc_publisher_init_best_effort(
     &test,
     &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
     "test"));
 
-  // create timer,
-  const unsigned int timer_timeout = 1000;
-  RCCHECK(rclc_timer_init_default(
-    &timer,
-    &support,
-    RCL_MS_TO_NS(timer_timeout),
-    timer_callback));
+  RCCHECK(rclc_publisher_init_best_effort(
+  &gyro_publisher,
+  &node,
+  ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
+  "gyro"));
+
+  RCCHECK(rclc_publisher_init_best_effort(
+    &Tilt_publisher,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
+    "Tilt"));
 
   // create executor
   RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
@@ -187,54 +184,6 @@ void controlLed(BLEDevice peripheral) {
   BLECharacteristic MagneticFieldCharacteristic = peripheral.characteristic("0003");
   BLECharacteristic AltitudeCharacteristic = peripheral.characteristic("0004");
   BLECharacteristic TemperatureCharacteristic = peripheral.characteristic("0005");
-  if (!LEDCharacteristic) {
-
-    Serial.println("Peripheral does not have LED characteristic!");
-
-    peripheral.disconnect();
-
-    return;
-
-  }
-if (!AccelerationCharacteristic) {
-
-    Serial.println("Peripheral does not have AccelerationCharacteristic!");
-
-    peripheral.disconnect();
-
-    return;
-
-  }
-
-  if (!MagneticFieldCharacteristic) {
-
-    Serial.println("Peripheral does not have MagneticFieldCharacteristic!");
-
-    peripheral.disconnect();
-
-    return;
-
-  }
-
-  if (!AltitudeCharacteristic) {
-
-    Serial.println("Peripheral does not have AltitudeCharacteristic!");
-
-    peripheral.disconnect();
-
-    return;
-
-  }
-
-  if (!TemperatureCharacteristic) {
-
-    Serial.println("Peripheral does not have TemperatureCharacteristic!");
-
-    peripheral.disconnect();
-
-    return;
-
-  }
 
   while (peripheral.connected()) {
 
@@ -254,6 +203,11 @@ if (!AccelerationCharacteristic) {
         Serial.print("Gyro_Z: ");
         Serial.println(Gyro[2]);
 
+        g_msg.x = Gyro[0];
+        g_msg.y = Gyro[1];
+        g_msg.z = Gyro[2];
+
+        RCSOFTCHECK(rcl_publish(&gyro_publisher, &g_msg, NULL));
 
 
         float Accel[3];
@@ -271,6 +225,10 @@ if (!AccelerationCharacteristic) {
         Serial.print(Accel[2]);
         Serial.println(' G');
 
+        angle.data.data = "Tilting_up";
+    RCSOFTCHECK(rcl_publish(&gyro_publisher, &angle, NULL));
+
+
         if(Accel[0] > 0.1){
 
     Accel[0] = 100*Accel[0];
@@ -279,6 +237,7 @@ if (!AccelerationCharacteristic) {
 
     Serial.print("Tilting up ");
 
+    
     Serial.print(degreesX);
 
     Serial.println(" degrees");
@@ -294,8 +253,6 @@ if (!AccelerationCharacteristic) {
     Serial.print("Tilting down ");
 
     Serial.print(degreesX);
-    msg.data = degreesX;
-    RCSOFTCHECK(rcl_publish(&test,&msg,NULL));
     Serial.println(" degrees");
 
     }
@@ -352,16 +309,15 @@ if (!AccelerationCharacteristic) {
         
         float Temp[2];
         TemperatureCharacteristic.readValue(Temp,12);
-        Serial.print("Temperature :");
-        Serial.print(Temp[0]);
-        Serial.println(" °C");
-
-        Serial.print("Humidity :");
-        Serial.print(Temp[1]);
-        Serial.println(" %");
-        Serial.println();
-        Serial.println();
- 
+        msg.data = 001;
+        RCSOFTCHECK(rcl_publish(&test,&msg,NULL));
+        msg.data = Temp[0];
+        RCSOFTCHECK(rcl_publish(&test,&msg,NULL));
+        msg.data = 002;
+        RCSOFTCHECK(rcl_publish(&test,&msg,NULL));
+        msg.data = Temp[1];
+        RCSOFTCHECK(rcl_publish(&test,&msg,NULL));
+    delay(500);
 
   }
 
