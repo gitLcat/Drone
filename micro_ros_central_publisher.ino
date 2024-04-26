@@ -7,14 +7,8 @@
 #include <rclc/executor.h>
 
 #include <std_msgs/msg/float32.h>
-#include <geometry_msgs/msg/vector3.h>
-#include <std_msgs/msg/string.h>
-rcl_publisher_t test;
-rcl_publisher_t gyro_publisher;
-rcl_publisher_t Tilt_publisher;
-std_msgs__msg__String angle;
+rcl_publisher_t sensor_data;
 std_msgs__msg__Float32 msg;
-geometry_msgs__msg__Vector3 g_msg;
 rclc_executor_t executor;
 rclc_support_t support;
 rcl_allocator_t allocator;
@@ -25,10 +19,6 @@ rcl_timer_t timer;
 
 #define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){error_loop();}}
 #define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){}}
-
-int degreesX = 0;
-
-int degreesY = 0;
 
 void error_loop(){
   while(1){
@@ -58,28 +48,14 @@ void setup() {
 
 
   RCCHECK(rclc_publisher_init_best_effort(
-    &test,
+    &sensor_data,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
-    "test"));
-
-  RCCHECK(rclc_publisher_init_best_effort(
-  &gyro_publisher,
-  &node,
-  ROSIDL_GET_MSG_TYPE_SUPPORT(geometry_msgs, msg, Vector3),
-  "gyro"));
-
-  RCCHECK(rclc_publisher_init_best_effort(
-    &Tilt_publisher,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, String),
-    "Tilt"));
-
+    "raw_sensor_data"));
   // create executor
   RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
   RCCHECK(rclc_executor_add_timer(&executor, &timer));
 
-  msg.data = 0;
   Serial.begin(115200);
 
   while (!Serial);
@@ -188,135 +164,58 @@ void controlLed(BLEDevice peripheral) {
   while (peripheral.connected()) {
 
 
-      
+      // Gyro Data
         float Gyro[3];
         LEDCharacteristic.readValue(Gyro,12);
-
-        Serial.print("Gyro_X: ");
-        Serial.println(Gyro[0]);
-
-
-        Serial.print("Gyro_Y: ");
-        Serial.println(Gyro[1]);
-
-
-        Serial.print("Gyro_Z: ");
-        Serial.println(Gyro[2]);
-
-        g_msg.x = Gyro[0];
-        g_msg.y = Gyro[1];
-        g_msg.z = Gyro[2];
-
-        RCSOFTCHECK(rcl_publish(&gyro_publisher, &g_msg, NULL));
+      // Gyro X Data
+        msg.data = Gyro[0];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
+        // Gyro Y Data
+        msg.data = Gyro[1];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
+        // Gyro Z Data
+        msg.data = Gyro[2];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
 
 
         float Accel[3];
         AccelerationCharacteristic.readValue(Accel,12);
-
-        Serial.print("Accel_X: ");
-        Serial.print(Accel[0]);
-        Serial.println(' G');
-
-        Serial.print("Accel_Y: ");
-        Serial.print(Accel[1]);
-        Serial.println(' G');
-
-        Serial.print("Accel_Z: ");
-        Serial.print(Accel[2]);
-        Serial.println(' G');
-
-        angle.data.data = "Tilting_up";
-    RCSOFTCHECK(rcl_publish(&gyro_publisher, &angle, NULL));
-
-
-        if(Accel[0] > 0.1){
-
-    Accel[0] = 100*Accel[0];
-
-    degreesX = map(Accel[0], 0, 97, 0, 90);
-
-    Serial.print("Tilting up ");
-
-    
-    Serial.print(degreesX);
-
-    Serial.println(" degrees");
-
-    }
-
-  if(Accel[0] < -0.1){
-
-    Accel[0] = 100*Accel[0];
-
-    degreesX = map(Accel[0], 0, -100, 0, 90);
-
-    Serial.print("Tilting down ");
-
-    Serial.print(degreesX);
-    Serial.println(" degrees");
-
-    }
-
-  if(Accel[1] > 0.1){
-
-    Accel[1] = 100*Accel[1];
-
-    degreesY = map(Accel[1], 0, 97, 0, 90);
-
-    Serial.print("Tilting left ");
-
-    Serial.print(degreesY);
-
-    Serial.println(" degrees");
-
-    }
-
-  if(Accel[1] < -0.1){
-
-    Accel[1] = 100*Accel[1];
-
-    degreesY = map(Accel[1], 0, -100, 0, 90);
-
-    Serial.print("Tilting right ");
-
-    Serial.print(degreesY);
-
-    Serial.println(" degrees");
-
-    }
+        // Accel X Data
+        msg.data = Accel[0];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
+        // Accel Y Data
+        msg.data = Accel[1];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
+        // Accel Z Data
+        msg.data = Accel[2];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
 
         float Magn[3];
         MagneticFieldCharacteristic.readValue(Magn,12);
-        Serial.print("Magn_X: ");
-        Serial.println(Magn[0]);
-
-        Serial.print("Magn_Y: ");
-        Serial.println(Magn[1]);
-
-
-        Serial.print("Magn_Z: ");
-        Serial.println(Magn[2]);
-        
+        // Magn X Data
+        msg.data = Magn[0];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
+        // Magn Y Data
+        msg.data = Magn[1];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
+        // Magn Z Data
+        msg.data = Magn[2];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
 
         float Alti[2];
-        AltitudeCharacteristic.readValue(Alti,12);
-        Serial.print("Pressure : ");
-        Serial.print(Alti[0]);
-        Serial.println('kPa');
+        //Pressure
+        msg.data = Alti[0];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
+        //Altitude
+        msg.data = Alti[1];
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
 
-        Serial.print("altitude : ");
-        Serial.println(Alti[1]);
-        
         float Temp[2];
         TemperatureCharacteristic.readValue(Temp,12);
-        msg.data = 001;
-        RCSOFTCHECK(rcl_publish(&test,&msg,NULL));
         msg.data = Temp[0];
-        RCSOFTCHECK(rcl_publish(&test,&msg,NULL));
-        msg.data = 002;
-        RCSOFTCHECK(rcl_publish(&test,&msg,NULL));
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
         msg.data = Temp[1];
-        RCSOFTCHECK(rcl_publish(&test,&msg,NULL));
+        RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
     delay(500);
 
   }
