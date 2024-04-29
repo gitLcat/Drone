@@ -204,6 +204,7 @@ void controlLed(BLEDevice peripheral) {
 
         float Alti[2];
         //Pressure
+        AltitudeCharacteristic.readValue(Alti,12);
         msg.data = Alti[0];
         RCSOFTCHECK(rcl_publish(&sensor_data,&msg,NULL));
         //Altitude
