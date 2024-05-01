@@ -9,16 +9,15 @@
 #include <std_msgs/msg/int32.h>
 
 rcl_subscription_t subscriber;
-rcl_publisher_t test;
+rcl_publisher_t gyro_publisher;
+std_msgs__msg__Int32 number;
 std_msgs__msg__Int32 msg;
-std_msgs__msg__Int32 numbers;
 rclc_executor_t executor;
 rclc_support_t support;
 rcl_allocator_t allocator;
 rcl_node_t node;
 rcl_timer_t timer;
-int number;
-
+float numbers;
 #define LED_PIN 13
 
 #define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){error_loop();}}
@@ -35,7 +34,7 @@ void error_loop(){
 void subscription_callback(const void * msgin)
 {  
   const std_msgs__msg__Int32 * msg = (const std_msgs__msg__Int32 *)msgin;
-  number = msg->data;
+  numbers = msg->data;
 
 }
 
@@ -60,21 +59,21 @@ void setup() {
     &subscriber,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-    "counter"));
+    "value"));
 
   RCCHECK(rclc_publisher_init_best_effort(
-    &test,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
-    "test"));
+  &gyro_publisher,
+  &node,
+  ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Int32),
+  "gyro"));
   // create executor
   RCCHECK(rclc_executor_init(&executor, &support.context, 2, &allocator));
   RCCHECK(rclc_executor_add_subscription(&executor, &subscriber, &msg, &subscription_callback, ON_NEW_DATA));
 }
 
 void loop() {
-  numbers.data= number;
-  RCSOFTCHECK(rcl_publish(&test,&numbers,NULL));
+  msg.data = numbers;
+  RCSOFTCHECK(rcl_publish(&gyro_publisher, &msg, NULL));
   delay(100);
   RCCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100)));
 }
