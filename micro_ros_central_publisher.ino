@@ -7,13 +7,17 @@
 #include <rclc/executor.h>
 
 #include <std_msgs/msg/float32.h>
+rcl_subscription_t subscriber;
 rcl_publisher_t sensor_data;
+std_msgs__msg__Float32 number;
 std_msgs__msg__Float32 msg;
 rclc_executor_t executor;
 rclc_support_t support;
 rcl_allocator_t allocator;
 rcl_node_t node;
 rcl_timer_t timer;
+
+float numbers;
 
 #define LED_PIN 13
 
@@ -27,6 +31,12 @@ void error_loop(){
   }
 }
 
+void subscription_callback(const void * msgin)
+{  
+  const std_msgs__msg__Float32  * msg = (const std_msgs__msg__Float32  *)msgin;
+  numbers = msg->data;
+
+}
 
 void setup() {
   set_microros_transports();
@@ -43,10 +53,15 @@ void setup() {
 
   // create node
   RCCHECK(rclc_node_init_default(&node, "micro_ros_arduino_node", "", &support));
+  
+    // create subscriber
+  RCCHECK(rclc_subscription_init_default(
+    &subscriber,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32 ),
+    "value"));
 
   // create publisher
-
-
   RCCHECK(rclc_publisher_init_default(
     &sensor_data,
     &node,
@@ -54,6 +69,7 @@ void setup() {
     "raw_sensor_data"));
   // create executor
   RCCHECK(rclc_executor_init(&executor, &support.context, 1, &allocator));
+  RCCHECK(rclc_executor_add_subscription(&executor, &subscriber, &msg, &subscription_callback, ON_NEW_DATA));
   RCCHECK(rclc_executor_add_timer(&executor, &timer));
 
   Serial.begin(115200);
